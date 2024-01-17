@@ -67,7 +67,9 @@ class InverseKinematics (object):
 
     def cost (self, q):
         # write your code here
-
+          q0 = q[0]
+          q1 = q[1]
+          return -1*(2*q0*q1 + 2*q0 - q0**2 - 2*q1**2)
     def solve (self, q):
         # write your code here
 
