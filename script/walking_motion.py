@@ -46,11 +46,38 @@ class SwingFootTrajectory(object):
         self.t_init = t_init
         self.t_end = t_end
         self.height = height
-        # Write your code here
+        self.init = init
+        self.end = end 
 
     def __call__(self, t):
-        # write your code here
+        T = self.t_end - self.t_init
 
+        x1 = self.end[0]
+        x0 = self.init[0]
+        h = self.height
+
+        #---------Parameters of x function-----------
+        a0 = x0
+        a1 = 0
+        a2 = 3 * (x1-x0)/T**2
+        a3 = -2 * (x1-x0)/T**3
+        
+        #---------x calculus------------------------
+        x = a3 * t**3 + a2 * t**2 + a1*t + a0
+        #---------Parameters of z function-----------
+        b0 = 0 
+        b1 = 0 
+        b4 = (4*h/T**2) * 1/((-3*T**2/4) - 1 )
+        b2 = -b4 
+        b3 = -2*b4*T 
+        #---------z calculus------------------------
+        z = b4 * t**4 + b3 * t**3 + b2 * t**2 + b1 * t**1 + b0
+        #---------y calculus------------------------
+        y = self.init[1] #we assume that y is constant 
+        
+        return [x,y,z]
+
+        
 # Computes a walking whole-body motion
 #
 # Input data are

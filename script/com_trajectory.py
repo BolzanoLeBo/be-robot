@@ -77,7 +77,7 @@ class ComTrajectory(object):
         I2N = np.identity(2*N)
         #create the matrix D
         D = self.create_D(N)
-        A = I2N + (z/(g*delta_t**2))*np.transpose(D).dot(D) 
+        
         self.N = N
         #get the wanted trajectory 
         cop_des = CoPDes(self.start, self.steps, self.end)
@@ -93,9 +93,11 @@ class ComTrajectory(object):
         d0[-2] = self.end[0]
         d0[-1] = self.end[1]
 
-        #calculate b
+        #calculate b and A
         b = cop2 - ((z/(g*delta_t**2)) * np.transpose(D).dot(d0))
-        self.X = (np.linalg.inv(np.transpose(A).dot(A))).dot(np.transpose(A).dot(b))
+        A = I2N + (z/(g*delta_t**2))*np.transpose(D).dot(D) 
+
+        self.X = (pinv(np.transpose(A).dot(A))).dot(np.transpose(A).dot(b))
         print(np.shape(self.X))
         return self.X
 
@@ -132,7 +134,8 @@ if __name__ == "__main__":
     ax.plot(times, com[:,1], label="y_com")
     ax.legend()
     plt.show()
-    '''com_trajectory.solve()
+    '''
+    com_trajectory.solve()
     com = np.array(list(map(com_trajectory, times)))
     fig = plt.figure()
     ax = fig.add_subplot(111)
