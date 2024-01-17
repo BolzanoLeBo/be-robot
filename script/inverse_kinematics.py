@@ -26,7 +26,7 @@
 
 import numpy as np
 import numpy.linalg
-from scipy.optimize import fmin_slsqp
+from scipy.optimize import fmin_slsqp, fmin_bfgs
 from pinocchio import forwardKinematics, log, neutral
 import eigenpy
 
@@ -66,12 +66,27 @@ class InverseKinematics (object):
         self.waistRefPose = self.data.oMi [robot.waistJointId].copy ()
 
     def cost (self, q):
-        # write your code here
-          q0 = q[0]
-          q1 = q[1]
-          return -1*(2*q0*q1 + 2*q0 - q0**2 - 2*q1**2)
+          
+          ref = [self.waistRefPose,  self.rightFootRefPose, self.leftFootRefPose]
+          
+          forwardKinematics(self.robot.model, self.data, q)
+          actualPosleftFoot = self.data.oMi[self.robot.leftFootJointId].copy ()
+          actualPosrightFoot = self.data.oMi [self.robot.rightFootJointId].copy ()
+          actualPoswaist = self.data.oMi [self.robot.waistJointId].copy ()
+
+          act = [actualPoswaist, actualPosrightFoot, actualPosleftFoot]
+          return np.linalg.norm([log(ref[i].inverse() * act[i]) for i in range (3)])
+
+    def constraint_eq(self, q):
+          return normalized_quaternion(q)
+
     def solve (self, q):
-        # write your code here
+          '''qopt_bfgs = fmin_bfgs(self.cost, q, callback=CallbackLogger())
+          print('\n *** Xopt in BFGS = ',qopt_bfgs,'\n\n\n\n')'''
+          qopt_clsq = fmin_slsqp(self.cost,q,
+                       f_eqcons=self.constraint_eq,
+                       iprint=2, full_output=1)
+          return qopt_clsq
 
 if __name__ == "__main__":
      from talos import Robot
@@ -92,4 +107,5 @@ if __name__ == "__main__":
      q0 [robot.name_to_config_index["arm_left_2_joint"]] = .2
      q0 [robot.name_to_config_index["arm_right_2_joint"]] = -.2
      q = ik.solve (q0)
-     robot.display(q)
+     robot.display(q[0])
+

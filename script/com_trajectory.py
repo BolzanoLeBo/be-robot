@@ -48,13 +48,55 @@ class ComTrajectory(object):
         self.steps = steps
         self.z_com = z_com
 
-    def compute(self):
+    def create_D(self, N) : 
+        # Define the 2x2 identity matrix
         I2 = np.identity(2)
+        # Initialize the (2N+2) x (2N) rectangular matrix with zeros
+        D = np.zeros((2*N + 2, 2*N))
+        # Fill the matrix with I2 and -I2 blocks
+        for i in range(N):
+            # Set the main diagonal blocks to I2
+            D[2*i:2*(i+1), 2*i:2*(i+1)] = I2
+            # Set the sub-diagonal blocks to -I2
+            if i < N - 1:
+                D[2*(i+1):2*(i+2), 2*i:2*(i+1)] = -I2
+        # Set the last two rows to the last -I2 block
+        D[2*N:2*N+2, 2*(N-1):2*N] = -I2
+
+        return D
+
+
+    def compute(self):
+        z = self.z_com
+        g = self.g
+        delta_t = self.delta_t
+
         n = len(self.steps)
         T = (1+n)*CoPDes.double_support_time + n * CoPDes.single_support_time
         N = int(T/self.delta_t) + 1
+        I2N = np.identity(2*N)
+        #create the matrix D
+        D = self.create_D(N)
+        A = I2N + (z/(g*delta_t**2))*np.transpose(D).dot(D) 
         self.N = N
-        # write your code here
+        #get the wanted trajectory 
+        cop_des = CoPDes(self.start, self.steps, self.end)
+        #Discretize cop_des
+        times = np.array([delta_t * k for k in range(N)])
+        cop = np.array(list(map(cop_des, times)))
+        #stacking the values of cop 
+        cop2 = cop.flatten()
+
+        #create d0 
+        d0 = np.zeros(2*N+2)
+        d0[0:2] = -self.start
+        d0[-2] = self.end[0]
+        d0[-1] = self.end[1]
+
+        #calculate b
+        b = cop2 - ((z/(g*delta_t**2)) * np.transpose(D).dot(d0))
+        self.X = (np.linalg.inv(np.transpose(A).dot(A))).dot(np.transpose(A).dot(b))
+        print(np.shape(self.X))
         return self.X
 
     # Return projection of center of mass on horizontal plane at time t
@@ -90,14 +132,14 @@ if __name__ == "__main__":
     ax.plot(times, com[:,1], label="y_com")
     ax.legend()
     plt.show()
-    # com_trajectory.solve()
-    # com = np.array(list(map(com_trajectory, times)))
-    # fig = plt.figure()
-    # ax = fig.add_subplot(111)
-    # ax.set_xlabel("time")
-    # ax.set_ylabel("m")
-    # ax.plot(times, com[:,0], label="x_com")
-    # ax.plot(times, com[:,1], label="y_com")
-    # ax.legend()
-    # plt.show()
+    '''com_trajectory.solve()
+    com = np.array(list(map(com_trajectory, times)))
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.set_xlabel("time")
+    ax.set_ylabel("m")
+    ax.plot(times, com[:,0], label="x_com")
+    ax.plot(times, com[:,1], label="y_com")
+    ax.legend()
+    plt.show()'''
     
