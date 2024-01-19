@@ -29,7 +29,7 @@ from pinocchio import centerOfMass, forwardKinematics
 from cop_des import CoPDes
 from com_trajectory import ComTrajectory
 from inverse_kinematics import InverseKinematics
-from tools import Constant, Piecewise
+from tools import Constant, Piecewise, Affine
 
 # Computes the trajectory of a swing foot.
 #
@@ -110,29 +110,81 @@ class WalkingMotion(object):
         dst = self.double_support_time
         t = 0
         #initialization 
+        
+        start_l = data.oMi[self.robot.leftFootJointId].translation
+        start_r = data.oMi [self.robot.rightFootJointId].translation
 
-        start_l = self.robot.leftFootRefPose
-        start_r = self.robot.rightFootRefPose
-
-        '''step_l = [step for step in steps if step[1] == -.1]
+        step_l = [step for step in steps if step[1] == -.1]
         step_r = [step for step in steps if step[1] == .1]
 
         self.rf_traj.segments.append(Constant(t, t+dst, [start_r[0], start_r[1], 0]))
         self.lf_traj.segments.append(Constant(t, t+dst, [start_l[0], start_l[1], 0]))
 
         t = t + dst
+        current_l = np.array(start_l)
+        current_r = np.array(start_r)
+        for i in range(len(step_l)) : 
+            # on garde current en z pour le assert ligne 45 
+            end_r = np.array([step_r[i][0], step_r[i][1], current_r[2]])
+            end_l = np.array([step_l[i][0], step_l[i][1], current_l[2]])
+            
+            #right step 
+            #self.rf_traj.segments.append(SwingFootTrajectory(t,t+sst, current_r, end_r, self.step_height))
+            self.rf_traj.segments.append(Affine(t,t+sst, current_r, end_r))
+            current_r = end_r
+            self.lf_traj.segments.append(Constant(t, t+sst,current_l))
+        
+            t += sst
 
-        self.rf_traj.segments.append(SwingFootTrajectory(t,t+sst, [start_r[0], start_r[1], 0], [step_r[0][0], step_r[0][0], 0]))
-        self.lf_traj.segments.append(Constant(t, t+sst, [start_l[0], start_l[1], 0]))
+            #stabilize 
+            self.rf_traj.segments.append(Constant(t, t+dst, current_r))
+            self.lf_traj.segments.append(Constant(t, t+dst, current_l))
 
-        t = t + sst'''
-        print(start_l)
-        '''
-        t_end = len(self.lf_traj.segments)
-        lf = SwingFootTrajectory(0, t_end, [0,0.1,0], end, self.step_height)
-        rf = SwingFootTrajectory(0, t_end, [0,-0.1,0], end, self.step_height)
-        '''
+            t += dst
+            
+            #left step 
+            #self.lf_traj.segments.append(SwingFootTrajectory(t,t+sst, current_l, end_l, self.step_height))
+            self.lf_traj.segments.append(Affine(t,t+sst, current_l, end_l))
+            current_l = end_l
+            self.rf_traj.segments.append(Constant(t, t+sst, current_r))
 
+            t += sst
+
+            #stabilize 
+            self.rf_traj.segments.append(Constant(t, t+dst, current_r))
+            self.lf_traj.segments.append(Constant(t, t+dst, current_l))
+
+            t += dst
+        
+        self.com_trajectory = ComTrajectory(com[0:2], steps, np.array([1.6, .0]), com[2])
+        X = self.com_trajectory.compute()
+
+        times = 0.01 * np.arange(len(X)//2)
+        #times = 0.01 * np.arange(500)
+        com = np.array(list(map(self.com_trajectory, times)))
+        rf = np.array(list(map(self.rf_traj, times)))
+        lf = np.array(list(map(self.lf_traj, times)))
+        configs = []
+        
+        for t in range(len(rf)) : 
+
+            ik = InverseKinematics (self.robot)
+
+            ik.rightFootRefPose.translation = np.array (rf[t])
+            ik.leftFootRefPose.translation = np.array (lf[t])
+
+            ik.waistRefPose.translation = np.array (com[t] + com_offset)
+
+            q0 = neutral (robot.model)
+            q0 [robot.name_to_config_index["leg_right_4_joint"]] = .2
+            q0 [robot.name_to_config_index["leg_left_4_joint"]] = .2
+            q0 [robot.name_to_config_index["arm_left_2_joint"]] = .2
+            q0 [robot.name_to_config_index["arm_right_2_joint"]] = -.2
+
+            q = ik.solve (q0)
+            configs.append(q)
+
+        return configs
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
@@ -145,7 +197,6 @@ if __name__ == "__main__":
     robot = Robot ()
     
     ik = InverseKinematics (robot)
-    print(ik.leftFootRefPose)
     ik.rightFootRefPose.translation = np.array ([0, -0.1, 0.1])
     ik.leftFootRefPose.translation = np.array ([0, 0.1, 0.1])
     ik.waistRefPose.translation = np.array ([0, 0, 0.95])
@@ -156,17 +207,17 @@ if __name__ == "__main__":
     q0 [robot.name_to_config_index["arm_left_2_joint"]] = .2
     q0 [robot.name_to_config_index["arm_right_2_joint"]] = -.2
     q = ik.solve (q0)
-    robot.display(q)
+    robot.display(q[0])
     wm = WalkingMotion(robot)
     # First two values correspond to initial position of feet
     # Last two values correspond to final position of feet
     steps = [np.array([0, -.1]), np.array([0.4, .1]),
              np.array([.8, -.1]), np.array([1.2, .1]),
              np.array([1.6, -.1]), np.array([1.6, .1])]
-    configs = wm.compute(q, steps)
+    configs = wm.compute(q[0], steps)
     for q in configs:
         time.sleep(1e-1)
-        robot.display(q)
+        robot.display(q[0])
     delta_t = wm.com_trajectory.delta_t
     times = delta_t*np.arange(wm.com_trajectory.N+1)
     lf = np.array(list(map(wm.lf_traj, times)))
