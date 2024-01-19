@@ -1,4 +1,4 @@
-# Copyright 2018 CNRS
+#Copyright 2018 CNRS
 
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -108,4 +108,3 @@ if __name__ == "__main__":
      q0 [robot.name_to_config_index["arm_right_2_joint"]] = -.2
      q = ik.solve (q0)
      robot.display(q[0])
-

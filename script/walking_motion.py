@@ -86,7 +86,8 @@ class SwingFootTrajectory(object):
 #
 class WalkingMotion(object):
     step_height = 0.05
-
+    single_support_time = .5
+    double_support_time = .1
     def __init__(self, robot):
         self.robot = robot
 
@@ -105,7 +106,32 @@ class WalkingMotion(object):
         # Trajectory of left and right feet
         self.lf_traj = Piecewise()
         self.rf_traj = Piecewise()
-        # write your code here
+        sst = self.single_support_time
+        dst = self.double_support_time
+        t = 0
+        #initialization 
+
+        start_l = self.robot.leftFootRefPose
+        start_r = self.robot.rightFootRefPose
+
+        '''step_l = [step for step in steps if step[1] == -.1]
+        step_r = [step for step in steps if step[1] == .1]
+
+        self.rf_traj.segments.append(Constant(t, t+dst, [start_r[0], start_r[1], 0]))
+        self.lf_traj.segments.append(Constant(t, t+dst, [start_l[0], start_l[1], 0]))
+
+        t = t + dst
+
+        self.rf_traj.segments.append(SwingFootTrajectory(t,t+sst, [start_r[0], start_r[1], 0], [step_r[0][0], step_r[0][0], 0]))
+        self.lf_traj.segments.append(Constant(t, t+sst, [start_l[0], start_l[1], 0]))
+
+        t = t + sst'''
+        print(start_l)
+        '''
+        t_end = len(self.lf_traj.segments)
+        lf = SwingFootTrajectory(0, t_end, [0,0.1,0], end, self.step_height)
+        rf = SwingFootTrajectory(0, t_end, [0,-0.1,0], end, self.step_height)
+        '''
 
 
 if __name__ == "__main__":
@@ -117,7 +143,9 @@ if __name__ == "__main__":
     import eigenpy
 
     robot = Robot ()
+    
     ik = InverseKinematics (robot)
+    print(ik.leftFootRefPose)
     ik.rightFootRefPose.translation = np.array ([0, -0.1, 0.1])
     ik.leftFootRefPose.translation = np.array ([0, 0.1, 0.1])
     ik.waistRefPose.translation = np.array ([0, 0, 0.95])
