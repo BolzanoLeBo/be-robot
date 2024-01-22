@@ -50,28 +50,33 @@ class SwingFootTrajectory(object):
         self.end = end 
 
     def __call__(self, t):
+        ti = self.t_init
         T = self.t_end - self.t_init
-
         x1 = self.end[0]
         x0 = self.init[0]
-        h = self.height
+        
+        z0= self.init[2]
+        h = self.height + z0
 
         #---------Parameters of x function-----------
         a0 = x0
         a1 = 0
-        a2 = 3 * (x1-x0)/T**2
-        a3 = -2 * (x1-x0)/T**3
+        a2 = -3 * (x0-x1)/T**2
+        a3 = 2 * (x0-x1)/T**3
         
         #---------x calculus------------------------
-        x = a3 * t**3 + a2 * t**2 + a1*t + a0
+        x = a3 * (t-ti)**3 + a2 * (t-ti)**2 + a1*(t-ti) + a0
         #---------Parameters of z function-----------
-        b0 = 0 
+        b0 = z0
         b1 = 0 
-        b4 = (4*h/T**2) * 1/((-3*T**2/4) - 1 )
-        b2 = -b4 
-        b3 = -2*b4*T 
+        b4 = (16*(h-z0))/T**4
+        b2 = b4*T**2
+        b3 = -2*b4*T
+        '''b2 = (16*(h - z0))/T**2
+        b3 = (32*(z0 - h))/T**3
+        b4 = (16*(h - z0))/T**4'''
         #---------z calculus------------------------
-        z = b4 * t**4 + b3 * t**3 + b2 * t**2 + b1 * t**1 + b0
+        z = b4 * (t-ti)**4 + b3 * (t-ti)**3 + b2 * (t-ti)**2 + b1 * (t-ti)**1 + b0
         #---------y calculus------------------------
         y = self.init[1] #we assume that y is constant 
         
@@ -114,25 +119,25 @@ class WalkingMotion(object):
         start_l = data.oMi[self.robot.leftFootJointId].translation
         start_r = data.oMi [self.robot.rightFootJointId].translation
 
-        step_l = [step for step in steps if step[1] == -.1]
-        step_r = [step for step in steps if step[1] == .1]
+        step_l = [step for step in steps if step[1] == .1]
+        step_r = [step for step in steps if step[1] == -.1]
 
-        self.rf_traj.segments.append(Constant(t, t+dst, [start_r[0], start_r[1], 0]))
-        self.lf_traj.segments.append(Constant(t, t+dst, [start_l[0], start_l[1], 0]))
+        self.rf_traj.segments.append(Constant(t, t+dst, start_r))
+        self.lf_traj.segments.append(Constant(t, t+dst, start_l))
 
         t = t + dst
         current_l = np.array(start_l)
         current_r = np.array(start_r)
         for i in range(len(step_l)) : 
             # on garde current en z pour le assert ligne 45 
-            end_r = np.array([step_r[i][0], step_r[i][1], current_r[2]])
+            if not i == len(step_l) -1 : 
+                end_r = np.array([step_r[i+1][0], step_r[i][1], current_r[2]])
             end_l = np.array([step_l[i][0], step_l[i][1], current_l[2]])
             
-            #right step 
-            #self.rf_traj.segments.append(SwingFootTrajectory(t,t+sst, current_r, end_r, self.step_height))
-            self.rf_traj.segments.append(Affine(t,t+sst, current_r, end_r))
-            current_r = end_r
-            self.lf_traj.segments.append(Constant(t, t+sst,current_l))
+            #left step 
+            self.lf_traj.segments.append(SwingFootTrajectory(t,t+sst, current_l, end_l, self.step_height))
+            current_l = end_l
+            self.rf_traj.segments.append(Constant(t, t+sst, current_r))
         
             t += sst
 
@@ -142,11 +147,10 @@ class WalkingMotion(object):
 
             t += dst
             
-            #left step 
-            #self.lf_traj.segments.append(SwingFootTrajectory(t,t+sst, current_l, end_l, self.step_height))
-            self.lf_traj.segments.append(Affine(t,t+sst, current_l, end_l))
-            current_l = end_l
-            self.rf_traj.segments.append(Constant(t, t+sst, current_r))
+            #right step 
+            self.rf_traj.segments.append(SwingFootTrajectory(t,t+sst, current_r, end_r, self.step_height))
+            current_r = end_r
+            self.lf_traj.segments.append(Constant(t, t+sst,current_l))
 
             t += sst
 
@@ -158,18 +162,34 @@ class WalkingMotion(object):
         
         self.com_trajectory = ComTrajectory(com[0:2], steps, np.array([1.6, .0]), com[2])
         X = self.com_trajectory.compute()
-
         times = 0.01 * np.arange(len(X)//2)
         #times = 0.01 * np.arange(500)
         com = np.array(list(map(self.com_trajectory, times)))
         rf = np.array(list(map(self.rf_traj, times)))
         lf = np.array(list(map(self.lf_traj, times)))
         configs = []
-        
+        cop_des = np.array(list(map(self.com_trajectory.cop_des, times)))
+        fig = plt.figure()
+        ax1 = fig.add_subplot(311)
+        ax2 = fig.add_subplot(312)
+        ax3 = fig.add_subplot(313)
+        ax1.plot(times, lf[:,0], label="x left foot")
+        ax1.plot(times, rf[:,0], label="x right foot")
+        ax1.plot(times, cop_des[:,0], label="x CoPdes")
+        ax1.legend()
+        ax2.plot(times, lf[:,1], label="y left foot")
+        ax2.plot(times, rf[:,1], label="y right foot")
+        ax2.plot(times, cop_des[:,1], label="y CoPdes")
+        ax2.legend()
+        ax3.plot(times, lf[:,2], label="z left foot")
+        ax3.plot(times, rf[:,2], label="z right foot")
+        ax3.legend()
+        plt.show()
+
+
         for t in range(len(rf)) : 
 
             ik = InverseKinematics (self.robot)
-
             ik.rightFootRefPose.translation = np.array (rf[t])
             ik.leftFootRefPose.translation = np.array (lf[t])
 

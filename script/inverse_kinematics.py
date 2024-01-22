@@ -75,7 +75,11 @@ class InverseKinematics (object):
           actualPoswaist = self.data.oMi [self.robot.waistJointId].copy ()
 
           act = [actualPoswaist, actualPosrightFoot, actualPosleftFoot]
-          return np.linalg.norm([log(ref[i].inverse() * act[i]) for i in range (3)])
+          res = np.linalg.norm([log(ref[i].inverse() * act[i]) for i in range (3)])
+
+          prods = [log(ref[i].inverse() * act[i]) for i in range (3)]
+          tab_norm = [np.linalg.norm(prod)**2 for prod in prods]
+          return np.sum(tab_norm)
 
     def constraint_eq(self, q):
           return normalized_quaternion(q)
