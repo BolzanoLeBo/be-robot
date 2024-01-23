@@ -75,7 +75,6 @@ class InverseKinematics (object):
           actualPoswaist = self.data.oMi [self.robot.waistJointId].copy ()
 
           act = [actualPoswaist, actualPosrightFoot, actualPosleftFoot]
-          res = np.linalg.norm([log(ref[i].inverse() * act[i]) for i in range (3)])
 
           prods = [log(ref[i].inverse() * act[i]) for i in range (3)]
           tab_norm = [np.linalg.norm(prod)**2 for prod in prods]

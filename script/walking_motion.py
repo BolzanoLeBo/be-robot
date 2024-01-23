@@ -54,7 +54,10 @@ class SwingFootTrajectory(object):
         T = self.t_end - self.t_init
         x1 = self.end[0]
         x0 = self.init[0]
-        
+
+        y0= self.init[1]
+        y1=self.end[1]
+
         z0= self.init[2]
         h = self.height + z0
 
@@ -77,8 +80,15 @@ class SwingFootTrajectory(object):
         b4 = (16*(h - z0))/T**4'''
         #---------z calculus------------------------
         z = b4 * (t-ti)**4 + b3 * (t-ti)**3 + b2 * (t-ti)**2 + b1 * (t-ti)**1 + b0
+        #---------Parameters of y function-----------
+        c0 = y0
+        c1 = 0
+        c2 = -3 * (y0-y1)/T**2
+        c3 = 2 * (y0-y1)/T**3
+        
         #---------y calculus------------------------
-        y = self.init[1] #we assume that y is constant 
+        #y = self.init[1] #we assume that y is constant 
+        y = c3 * (t-ti)**3 + c2 * (t-ti)**2 + c1*(t-ti) + c0
         
         return [x,y,z]
 
@@ -119,8 +129,9 @@ class WalkingMotion(object):
         start_l = data.oMi[self.robot.leftFootJointId].translation
         start_r = data.oMi [self.robot.rightFootJointId].translation
 
-        step_l = [step for step in steps if step[1] == .1]
-        step_r = [step for step in steps if step[1] == -.1]
+        step_l = steps[1::2]
+        step_r = steps[0::2]
+
 
         self.rf_traj.segments.append(Constant(t, t+dst, start_r))
         self.lf_traj.segments.append(Constant(t, t+dst, start_l))
@@ -131,7 +142,7 @@ class WalkingMotion(object):
         for i in range(len(step_l)) : 
             # on garde current en z pour le assert ligne 45 
             if not i == len(step_l) -1 : 
-                end_r = np.array([step_r[i+1][0], step_r[i][1], current_r[2]])
+                end_r = np.array([step_r[i+1][0], step_r[i+1][1], current_r[2]])
             end_l = np.array([step_l[i][0], step_l[i][1], current_l[2]])
             
             #left step 
@@ -160,7 +171,8 @@ class WalkingMotion(object):
 
             t += dst
         
-        self.com_trajectory = ComTrajectory(com[0:2], steps, np.array([1.6, .0]), com[2])
+        #self.com_trajectory = ComTrajectory(com[0:2], steps, np.array([1.6, .2]), com[2])
+        self.com_trajectory = ComTrajectory(np.array([0,0]), steps, np.array([1.6, .2]), com[2])
         X = self.com_trajectory.compute()
         times = 0.01 * np.arange(len(X)//2)
         #times = 0.01 * np.arange(500)
@@ -231,9 +243,16 @@ if __name__ == "__main__":
     wm = WalkingMotion(robot)
     # First two values correspond to initial position of feet
     # Last two values correspond to final position of feet
+    #steps = [np.array([0, -.1]), np.array([0.4, .1]),
+    #         np.array([.8, -.1]), np.array([1.2, .1]),
+    #         np.array([1.6, -.1]), np.array([1.6, .1])]
+
+
     steps = [np.array([0, -.1]), np.array([0.4, .1]),
-             np.array([.8, -.1]), np.array([1.2, .1]),
-             np.array([1.6, -.1]), np.array([1.6, .1])]
+             np.array([.8, .0]), np.array([1.2, .2]),
+             np.array([1.6, .1]), np.array([1.6, .3])]
+
+
     configs = wm.compute(q[0], steps)
     for q in configs:
         time.sleep(1e-1)
