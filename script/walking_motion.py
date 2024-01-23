@@ -131,19 +131,26 @@ class WalkingMotion(object):
 
         step_l = steps[1::2]
         step_r = steps[0::2]
+        current_l = np.array(start_l)
+        current_r = np.array(start_r)
+
+
+        #add z to steps
+        for i in range (len(step_l)) : 
+            step_l[i] = np.append(step_l[i], start_l[2])
+            step_r[i] = np.append(step_r[i], start_r[2])
 
 
         self.rf_traj.segments.append(Constant(t, t+dst, start_r))
         self.lf_traj.segments.append(Constant(t, t+dst, start_l))
 
         t = t + dst
-        current_l = np.array(start_l)
-        current_r = np.array(start_r)
+
         for i in range(len(step_l)) : 
             # on garde current en z pour le assert ligne 45 
-            if not i == len(step_l) -1 : 
-                end_r = np.array([step_r[i+1][0], step_r[i+1][1], current_r[2]])
-            end_l = np.array([step_l[i][0], step_l[i][1], current_l[2]])
+            if i != len(step_l) -1 : 
+                end_r = np.array(step_r[i+1])
+            end_l = np.array(step_l[i])
             
             #left step 
             self.lf_traj.segments.append(SwingFootTrajectory(t,t+sst, current_l, end_l, self.step_height))
@@ -159,7 +166,10 @@ class WalkingMotion(object):
             t += dst
             
             #right step 
-            self.rf_traj.segments.append(SwingFootTrajectory(t,t+sst, current_r, end_r, self.step_height))
+            if i != len(step_l) -1 : 
+                self.rf_traj.segments.append(SwingFootTrajectory(t,t+sst, current_r, end_r, self.step_height))
+            else : 
+                self.rf_traj.segments.append(Constant(t,t+sst, current_r))
             current_r = end_r
             self.lf_traj.segments.append(Constant(t, t+sst,current_l))
 
@@ -171,8 +181,7 @@ class WalkingMotion(object):
 
             t += dst
         
-        #self.com_trajectory = ComTrajectory(com[0:2], steps, np.array([1.6, .2]), com[2])
-        self.com_trajectory = ComTrajectory(np.array([0,0]), steps, np.array([1.6, .2]), com[2])
+        self.com_trajectory = ComTrajectory(com[0:2], steps, np.array([1.6, .2]), com[2])
         X = self.com_trajectory.compute()
         times = 0.01 * np.arange(len(X)//2)
         #times = 0.01 * np.arange(500)
