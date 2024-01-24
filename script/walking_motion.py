@@ -30,6 +30,7 @@ from cop_des import CoPDes
 from com_trajectory import ComTrajectory
 from inverse_kinematics import InverseKinematics
 from tools import Constant, Piecewise, Affine
+from real_trajectory import RealTrajectory
 
 # Computes the trajectory of a swing foot.
 #
@@ -128,7 +129,6 @@ class WalkingMotion(object):
         
         start_l = data.oMi[self.robot.leftFootJointId].translation
         start_r = data.oMi [self.robot.rightFootJointId].translation
-
         step_l = steps[1::2]
         step_r = steps[0::2]
         current_l = np.array(start_l)
@@ -137,8 +137,8 @@ class WalkingMotion(object):
 
         #add z to steps
         for i in range (len(step_l)) : 
-            step_l[i] = np.append(step_l[i], start_l[2])
-            step_r[i] = np.append(step_r[i], start_r[2])
+            step_l[i] = np.append(np.array(step_l[i]), start_l[2])
+            step_r[i] = np.append(np.array(step_r[i]), start_r[2])
 
 
         self.rf_traj.segments.append(Constant(t, t+dst, start_r))
@@ -234,6 +234,7 @@ if __name__ == "__main__":
     import numpy as np
     from inverse_kinematics import InverseKinematics
     import eigenpy
+    from real_trajectory import RealTrajectory
 
     robot = Robot ()
     
@@ -257,9 +258,16 @@ if __name__ == "__main__":
     #         np.array([1.6, -.1]), np.array([1.6, .1])]
 
 
-    steps = [np.array([0, -.1]), np.array([0.4, .1]),
+    '''steps = [np.array([0, -.1]), np.array([0.4, .1]),
              np.array([.8, .0]), np.array([1.2, .2]),
-             np.array([1.6, .1]), np.array([1.6, .3])]
+             np.array([1.6, .1]), np.array([1.6, .3])]'''
+
+
+    start = np.array([0,0,0])
+    end = np.array([3.2,.6,0])
+    rt = RealTrajectory(start, end)
+    steps = rt.compute()
+    print(steps)
 
 
     configs = wm.compute(q[0], steps)
