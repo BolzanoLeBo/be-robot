@@ -37,8 +37,7 @@ class RealTrajectory(object) :
         dist  = norm(self.init[0:2] - self.end[0:2])
 
         self.N = round(dist//self.normal_step)+1
-        if self.N%2 == 1 : 
-            self.N -= 1
+
 
         d0 = np.zeros(3*self.N+3)
         d0[0:3] = -self.init    
@@ -62,10 +61,20 @@ class RealTrajectory(object) :
                 com_traj.append(np.array([steps[i][0], steps[i][1]+0.1]))
             else : 
                 com_traj.append(np.array([steps[i][0], steps[i][1]-0.1]))
-        com_traj.append(np.array([steps[-1][0], steps[-1][1]]))
+
+        
+        if len(com_traj)%2 == 1 :
+
+            com_traj.append(np.array([steps[-1][0], steps[-1][1]]))
+
+        if len(com_traj)%2 == 0 : 
+            com_traj.append(np.array([steps[-1][0], steps[-1][1]-0.1]))
+            com_traj.append(np.array([steps[-1][0], steps[-1][1]+0.1]))
 
         self.com_traj= np.array(com_traj)
-        return(com_traj)
+        self.theta = np.array([self.steps[i][2] for i in range(len(steps))])
+        #print("yo", self.theta, len(self.theta), len(com_traj))
+        return(com_traj, self.theta)
         
 
 if __name__ == "__main__":

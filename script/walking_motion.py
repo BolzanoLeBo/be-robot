@@ -31,6 +31,7 @@ from com_trajectory import ComTrajectory
 from inverse_kinematics import InverseKinematics
 from tools import Constant, Piecewise, Affine
 from real_trajectory import RealTrajectory
+from math import cos, sin
 
 # Computes the trajectory of a swing foot.
 #
@@ -100,6 +101,12 @@ class SwingFootTrajectory(object):
 #  - an initial configuration of the robot,
 #  - a sequence of step positions (x,y) on the ground
 #
+
+def rot_z(theta) : 
+    return np.array([np.array([cos(theta), -sin(theta), 0]),
+                     np.array([sin(theta), cos(theta), 0]),
+                     np.array([0, 0, 1])])
+
 class WalkingMotion(object):
     step_height = 0.05
     single_support_time = .5
@@ -107,7 +114,7 @@ class WalkingMotion(object):
     def __init__(self, robot):
         self.robot = robot
 
-    def compute(self, q0, steps):
+    def compute(self, q0, steps, end, theta):
         # Test input data
         if len(steps) < 4:
             raise RuntimeError("sequence of step should be of length at least 4 instead of " +
@@ -180,8 +187,7 @@ class WalkingMotion(object):
             self.lf_traj.segments.append(Constant(t, t+dst, current_l))
 
             t += dst
-        
-        self.com_trajectory = ComTrajectory(com[0:2], steps, np.array([1.6, .2]), com[2])
+        self.com_trajectory = ComTrajectory(com[0:2], steps, end[0:2], com[2])
         X = self.com_trajectory.compute()
         times = 0.01 * np.arange(len(X)//2)
         #times = 0.01 * np.arange(500)
@@ -207,7 +213,8 @@ class WalkingMotion(object):
         ax3.legend()
         plt.show()
 
-
+        div = len(rf) // len(theta)
+        i=0
         for t in range(len(rf)) : 
 
             ik = InverseKinematics (self.robot)
@@ -215,6 +222,18 @@ class WalkingMotion(object):
             ik.leftFootRefPose.translation = np.array (lf[t])
 
             ik.waistRefPose.translation = np.array (com[t] + com_offset)
+
+            
+            rot = rot_z(theta[i])
+            ik.waistRefPose.rotation = rot
+            ik.rightFootRefPose.rotation = rot
+            ik.leftFootRefPose.rotation = rot
+
+            if  t % div == 0 and i < len(theta)-1: 
+                i+=1
+
+                
+            
 
             q0 = neutral (robot.model)
             q0 [robot.name_to_config_index["leg_right_4_joint"]] = .2
@@ -264,13 +283,11 @@ if __name__ == "__main__":
 
 
     start = np.array([0,0,0])
-    end = np.array([3.2,.6,0])
+    end = np.array([3.2,0.6,0.30])
     rt = RealTrajectory(start, end)
-    steps = rt.compute()
-    print(steps)
-
-
-    configs = wm.compute(q[0], steps)
+    steps, theta = rt.compute()
+    print(theta)
+    configs = wm.compute(q[0], steps, end, theta)
     for q in configs:
         time.sleep(1e-1)
         robot.display(q[0])
