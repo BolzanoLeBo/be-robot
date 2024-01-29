@@ -3,12 +3,26 @@ from numpy.linalg import norm, pinv
 from scipy.optimize import fmin_bfgs
 import matplotlib.pyplot as plt 
 
-
+def rot(theta) : 
+    return np.array([np.array([cos(theta), -sin(theta)]),
+                     np.array([sin(theta), cos(theta)])])
 
 class RealTrajectory(object) : 
 
+    def cost (self, X_act, X_fut, theta_act, theta_fut):
+        a = 1.2 
+        v = rot(theta_act).transpose() @ np.array([X_act[0]-X_fut[0],[X_act[1]-X_fut[1]]])
 
+        obj = v[0]**2 + a*v[1]**2 + (theta_act-theta_fut)**2
+        return obj
+    def solve (self, X_act, X_fut, theta_act, theta_fut)
+        qopt_bfgs = fmin_bfgs(self.cost,  X_act, X_fut, theta_act, theta_fut, callback=CallbackLogger())
+                print('\n *** Xopt in BFGS = ',qopt_bfgs,'\n\n\n\n')'
 
+    def compute2(self)
+        dist  = norm(self.init[0:2] - self.end[0:2])
+
+        self.N = round(dist//self.normal_step)+1
     def __init__(self, init, end) : 
         self.init = init
         self.end = end
