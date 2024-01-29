@@ -232,8 +232,6 @@ class WalkingMotion(object):
             if  t % div == 0 and i < len(theta)-1: 
                 i+=1
 
-                
-            
 
             q0 = neutral (robot.model)
             q0 [robot.name_to_config_index["leg_right_4_joint"]] = .2
@@ -286,6 +284,7 @@ if __name__ == "__main__":
     end = np.array([3.2,0.6,0.30])
     rt = RealTrajectory(start, end)
     steps, theta = rt.compute()
+    print(steps)
     print(theta)
     configs = wm.compute(q[0], steps, end, theta)
     for q in configs:
